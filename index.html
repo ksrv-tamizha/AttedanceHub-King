@@ -63,6 +63,7 @@
       <button id="btn-enroll" class="active" onclick="switchTab('enroll')">Enrollment</button>
       <button id="btn-scan" onclick="switchTab('scan')">QR Scanner</button>
       <button id="btn-manage" onclick="switchTab('manage')">Manage</button>
+      <button id="btn-details" onclick="switchTab('details')">Profile</button>
     </div>
 
     <!-- ENROLLMENT VIEW -->
@@ -106,6 +107,39 @@
       <div id="msg-scan" class="msg-box"></div>
     </div>
 
+<div id="view-details" class="view-section">
+      <div class="form-group">
+        <label>Enter ID or Scan</label>
+        <div style="display: flex; gap: 10px;">
+          <input type="text" id="detail-id" placeholder="001 or ENR-001" onkeypress="if(event.keyCode==13) fetchDetails()">
+          <button class="btn btn-blue" style="margin-top: 0; width: auto;" onclick="fetchDetails()">Search</button>
+          <button class="btn btn-green" style="margin-top: 0; width: auto;" onclick="startDetailScanner()">📷</button>
+        </div>
+      </div>
+      
+      <div id="detail-reader" style="width: 100%; border-radius: 8px; overflow: hidden; margin-bottom: 15px; display: none;"></div>
+      <div id="msg-details" class="msg-box"></div>
+      
+      <div id="detail-card" style="display: none; background: #1e272e; padding: 20px; border-radius: 8px; margin-top: 15px; text-align: left; border: 1px solid #353b48;">
+        <div style="text-align: center; margin-bottom: 15px;">
+          <img id="d-photo" src="" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #00a8ff;">
+          <h3 id="d-name" style="margin: 10px 0 5px 0; color: white;"></h3>
+          <span id="d-enr" style="color: #00a8ff; font-weight: bold;"></span>
+        </div>
+        <ul style="list-style: none; padding: 0; color: #dcdde1; line-height: 1.8; font-size: 15px;">
+          <li><b>Course:</b> <span id="d-course"></span></li>
+          <li><b>Join Date:</b> <span id="d-join"></span></li>
+          <hr style="border-color: #353b48; margin: 10px 0;">
+          <li><b>Total Possible Days:</b> <span id="d-possible"></span></li>
+          <li><b>Holidays & Sundays:</b> <span id="d-holidays"></span></li>
+          <li><b>Total Leave (Absent):</b> <span id="d-absent" style="color: #e84118; font-weight: bold;"></span></li>
+          <hr style="border-color: #353b48; margin: 10px 0;">
+          <li><b>Attendance Rate:</b> <span id="d-pct" style="color: #4cd137; font-weight: bold; font-size: 18px;"></span></li>
+        </ul>
+      </div>
+    </div>
+
+    
     <!-- NEW MANAGEMENT VIEW -->
     <div id="view-manage" class="view-section">
       
@@ -365,6 +399,65 @@
       msgBox.className = "msg-box error";
       msgBox.innerHTML = `❌ ${res.error}`;
     }
+  }
+
+  // Ensure 'details' is added to your switchTab array:
+  // ['enroll', 'scan', 'manage', 'details'].forEach(...)
+
+  async function fetchDetails(scannedId = null) {
+    let manualId = scannedId || document.getElementById('detail-id').value.trim();
+    const msgBox = document.getElementById('msg-details');
+    const card = document.getElementById('detail-card');
+    
+    if (!manualId) return;
+
+    if (!manualId.toUpperCase().startsWith("ENR-") && !isNaN(manualId)) {
+      manualId = "ENR-" + manualId.padStart(3, '0');
+    } else {
+      manualId = manualId.toUpperCase();
+    }
+    
+    document.getElementById('detail-id').value = manualId;
+    card.style.display = "none";
+    msgBox.style.display = "flex";
+    msgBox.className = "msg-box processing";
+    msgBox.innerHTML = "Fetching record...";
+
+    const res = await callMasterAPI("getStudentDetails", { enrollNumber: manualId }, null);
+    
+    if(res.success) {
+      msgBox.style.display = "none";
+      card.style.display = "block";
+      
+      document.getElementById('d-photo').src = res.data.photo;
+      document.getElementById('d-name').innerText = res.data.name;
+      document.getElementById('d-enr').innerText = res.data.enrollNumber;
+      document.getElementById('d-course').innerText = res.data.course;
+      document.getElementById('d-join').innerText = res.data.joinDate;
+      document.getElementById('d-possible').innerText = res.data.totalPossible;
+      document.getElementById('d-holidays').innerText = res.data.holidays;
+      document.getElementById('d-absent').innerText = res.data.totalAbsent;
+      document.getElementById('d-pct').innerText = res.data.attendancePct;
+    } else {
+      msgBox.className = "msg-box error";
+      msgBox.innerHTML = `❌ ${res.error}`;
+      if (res.error.includes("Unauthorized")) setTimeout(() => { location.reload(); }, 2000);
+    }
+  }
+
+  let detailScanner;
+  function startDetailScanner() {
+    document.getElementById('detail-reader').style.display = "block";
+    detailScanner = new Html5Qrcode("detail-reader");
+    detailScanner.start(
+      { facingMode: "environment" }, 
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        detailScanner.stop();
+        document.getElementById('detail-reader').style.display = "none";
+        fetchDetails(decodedText.trim());
+      }
+    );
   }
 </script>
 </body>
