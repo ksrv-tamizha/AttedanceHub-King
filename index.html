@@ -37,7 +37,7 @@
 
     #reader { width: 100%; background: #000; border-radius: 8px; overflow: hidden; margin-top: 15px; border: 2px solid #353b48; display: none; }
     
-    #scan-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(30, 39, 46, 0.98); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; text-align: center; backdrop-filter: blur(8px); margin: 0; }
+    #scan-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(47, 54, 64, 0.95); border-radius: 12px; z-index: 100; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; text-align: center; backdrop-filter: blur(5px); }
     #scan-overlay h3 { color: #4cd137; font-size: 28px; margin-bottom: 10px; }
     #scan-overlay p { font-size: 18px; color: white; margin-bottom: 30px; }
   </style>
@@ -62,6 +62,7 @@
     <div class="nav-tabs">
       <button id="btn-enroll" class="active" onclick="switchTab('enroll')">Enrollment</button>
       <button id="btn-scan" onclick="switchTab('scan')">QR Scanner</button>
+      <button id="btn-manage" onclick="switchTab('manage')">Manage</button>
     </div>
 
     <!-- ENROLLMENT VIEW -->
@@ -87,7 +88,11 @@
       
       <div style="position: relative;">
         <div id="reader"></div>
-       
+        <div id="scan-overlay">
+          <h3 id="overlay-status">✅ Success!</h3>
+          <p id="overlay-text">Student Logged Present</p>
+          <button class="btn btn-blue" onclick="unlockScanner()" style="font-size: 20px; padding: 20px;">Tap to Scan Next</button>
+        </div>
       </div>
       
       <div style="margin-top: 20px; border-top: 1px solid #7f8fa6; padding-top: 20px;">
@@ -100,13 +105,41 @@
       </div>
       <div id="msg-scan" class="msg-box"></div>
     </div>
+
+    <!-- NEW MANAGEMENT VIEW -->
+    <div id="view-manage" class="view-section">
+      
+      <!-- Mark Completed -->
+      <div style="background: #1e272e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h3 style="color: #fbc531; margin-top: 0;">Mark Student Completed</h3>
+        <div class="form-group">
+          <label>Enrollment Number</label>
+          <input type="text" id="comp-id" placeholder="e.g. 001 or ENR-001">
+        </div>
+        <div class="form-group">
+          <label>Completion Date</label>
+          <input type="date" id="comp-date">
+        </div>
+        <button class="btn btn-blue" id="btn-comp" onclick="handleMarkCompleted()">Submit Completion</button>
+        <div id="msg-comp" class="msg-box"></div>
+      </div>
+
+      <!-- Mark Holiday -->
+      <div style="background: #1e272e; padding: 15px; border-radius: 8px;">
+        <h3 style="color: #4cd137; margin-top: 0;">Mark Holiday / Cancelled Class</h3>
+        <div class="form-group">
+          <label>Holiday Date</label>
+          <input type="date" id="hol-date">
+        </div>
+        <button class="btn btn-green" id="btn-hol" onclick="handleMarkHoliday()">Add Holiday</button>
+        <div id="msg-hol" class="msg-box"></div>
+      </div>
+
+    </div>
+
   </div>
 </div>
- <div id="scan-overlay">
-          <h3 id="overlay-status">✅ Success!</h3>
-          <p id="overlay-text">Student Logged Present</p>
-          <button class="btn btn-blue" onclick="unlockScanner()" style="font-size: 20px; padding: 20px;">Tap to Scan Next</button>
-        </div>
+
 <script>
   const API_URL = "https://script.google.com/macros/s/AKfycbyiM08C13kBsmMoTHxjjn-RYh232FSvwWY4nKgUkNosKPfZ1XvEhi8GL4-cSwTgvw7X/exec";
   let activeSecret = ""; 
@@ -131,11 +164,15 @@
       activeSecret = pin; 
       document.getElementById('login-screen').style.display = "none";
       document.getElementById('dashboard-screen').style.display = "block";
+      
+      // Auto-set today's date in the date pickers upon login
+      document.getElementById('comp-date').valueAsDate = new Date();
+      document.getElementById('hol-date').valueAsDate = new Date();
     }
   }
 
   function switchTab(tab) {
-    ['enroll', 'scan'].forEach(t => {
+    ['enroll', 'scan', 'manage'].forEach(t => {
       document.getElementById(`btn-${t}`).classList.remove('active');
       document.getElementById(`view-${t}`).classList.remove('active');
     });
@@ -278,6 +315,56 @@
       osc.frequency.value = 1000; gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
       osc.start(); setTimeout(() => osc.stop(), 150);
     } catch (e) {}
+  }
+
+  // --- NEW MANAGE LOGIC ---
+  async function handleMarkCompleted() {
+    let manualId = document.getElementById('comp-id').value.trim();
+    const compDate = document.getElementById('comp-date').value;
+    const msgBox = document.getElementById('msg-comp');
+    
+    if (!manualId || !compDate) return alert("Please fill all fields.");
+
+    // Uses the same smart auto-formatting as the scanner!
+    if (!manualId.toUpperCase().startsWith("ENR-") && !isNaN(manualId)) {
+      manualId = "ENR-" + manualId.padStart(3, '0');
+    } else {
+      manualId = manualId.toUpperCase();
+    }
+
+    msgBox.className = "msg-box processing";
+    msgBox.innerHTML = "Processing...";
+
+    const res = await callMasterAPI("markCompleted", { enrollNumber: manualId, date: compDate }, "btn-comp");
+    
+    if(res.success) {
+      msgBox.className = "msg-box success";
+      msgBox.innerHTML = `✅ ${manualId} successfully marked completed!`;
+      document.getElementById('comp-id').value = "";
+    } else {
+      msgBox.className = "msg-box error";
+      msgBox.innerHTML = `❌ ${res.error}`;
+    }
+  }
+
+  async function handleMarkHoliday() {
+    const holDate = document.getElementById('hol-date').value;
+    const msgBox = document.getElementById('msg-hol');
+    
+    if (!holDate) return alert("Please select a date.");
+
+    msgBox.className = "msg-box processing";
+    msgBox.innerHTML = "Processing...";
+
+    const res = await callMasterAPI("markHoliday", { date: holDate }, "btn-hol");
+    
+    if(res.success) {
+      msgBox.className = "msg-box success";
+      msgBox.innerHTML = `✅ Holiday successfully logged for ${holDate}!`;
+    } else {
+      msgBox.className = "msg-box error";
+      msgBox.innerHTML = `❌ ${res.error}`;
+    }
   }
 </script>
 </body>
