@@ -87,11 +87,7 @@
       
       <div style="position: relative;">
         <div id="reader"></div>
-        <div id="scan-overlay">
-          <h3 id="overlay-status">✅ Success!</h3>
-          <p id="overlay-text">Student Logged Present</p>
-          <button class="btn btn-blue" onclick="unlockScanner()" style="font-size: 20px; padding: 20px;">Tap to Scan Next</button>
-        </div>
+       
       </div>
       
       <div style="margin-top: 20px; border-top: 1px solid #7f8fa6; padding-top: 20px;">
@@ -106,7 +102,11 @@
     </div>
   </div>
 </div>
-
+ <div id="scan-overlay">
+          <h3 id="overlay-status">✅ Success!</h3>
+          <p id="overlay-text">Student Logged Present</p>
+          <button class="btn btn-blue" onclick="unlockScanner()" style="font-size: 20px; padding: 20px;">Tap to Scan Next</button>
+        </div>
 <script>
   const API_URL = "https://script.google.com/macros/s/AKfycbyiM08C13kBsmMoTHxjjn-RYh232FSvwWY4nKgUkNosKPfZ1XvEhi8GL4-cSwTgvw7X/exec";
   let activeSecret = ""; 
