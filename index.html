@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Hub - AutoScript</title>
+
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e272e; color: #f5f6fa; margin: 0; padding: 0; display: flex; justify-content: center; min-height: 100vh; flex-direction: column; align-items: center;}
     .container { width: 100%; max-width: 600px; background: #2f3640; padding: 25px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); position: relative; box-sizing: border-box; }
@@ -22,7 +23,7 @@
 
     .form-group { margin-bottom: 15px; text-align: left; }
     label { display: block; margin-bottom: 6px; font-weight: 600; color: #dcdde1; font-size: 14px; }
-    input[type="text"], input[type="number"], input[type="email"], select, input[type="password"] { width: 100%; padding: 12px; border: 1px solid #353b48; border-radius: 6px; background: #1e272e; color: white; font-size: 15px; box-sizing: border-box; }
+    input[type="text"], input[type="number"], input[type="email"], select, input[type="password"], input[type="tel"], input[type="date"] { width: 100%; padding: 12px; border: 1px solid #353b48; border-radius: 6px; background: #1e272e; color: white; font-size: 15px; box-sizing: border-box; }
     
     .btn { width: 100%; padding: 14px; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
     .btn-blue { background-color: #00a8ff; }
@@ -37,7 +38,7 @@
 
     #reader { width: 100%; background: #000; border-radius: 8px; overflow: hidden; margin-top: 15px; border: 2px solid #353b48; display: none; }
     
-    #scan-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(47, 54, 64, 0.95); border-radius: 12px; z-index: 100; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; text-align: center; backdrop-filter: blur(5px); }
+    #scan-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(30, 39, 46, 0.98); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; text-align: center; backdrop-filter: blur(8px); margin: 0; }
     #scan-overlay h3 { color: #4cd137; font-size: 28px; margin-bottom: 10px; }
     #scan-overlay p { font-size: 18px; color: white; margin-bottom: 30px; }
   </style>
@@ -70,7 +71,7 @@
     <div id="view-enroll" class="view-section active">
       <form id="form-enroll" onsubmit="handleEnroll(event)">
         <div class="form-group"><label>Student Name</label><input type="text" id="en-name" required></div>
-        <div class="form-group"><label>Age</label><input type="number" id="en-age" required></div>
+        <div class="form-group"><label>Mobile Number</label><input type="tel" id="en-mobile" placeholder="e.g. 9876543210" required></div>
         <div class="form-group"><label>Course</label>
           <!-- Options are now fetched dynamically from Google Sheets -->
           <select id="en-course" required>
@@ -85,15 +86,16 @@
 
     <!-- SCANNER VIEW -->
     <div id="view-scan" class="view-section">
+      <!-- NEW: Attendance Date Picker -->
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Attendance Date</label>
+        <input type="date" id="scan-date">
+      </div>
+
       <button class="btn btn-green" id="btn-start-camera" onclick="startScanner()">📸 Start Scanner</button>
       
       <div style="position: relative;">
         <div id="reader"></div>
-        <div id="scan-overlay">
-          <h3 id="overlay-status">✅ Success!</h3>
-          <p id="overlay-text">Student Logged Present</p>
-          <button class="btn btn-blue" onclick="unlockScanner()" style="font-size: 20px; padding: 20px;">Tap to Scan Next</button>
-        </div>
       </div>
       
       <div style="margin-top: 20px; border-top: 1px solid #7f8fa6; padding-top: 20px;">
@@ -107,7 +109,8 @@
       <div id="msg-scan" class="msg-box"></div>
     </div>
 
-<div id="view-details" class="view-section">
+    <!-- PROFILE DETAILS VIEW -->
+    <div id="view-details" class="view-section">
       <div class="form-group">
         <label>Enter ID or Scan</label>
         <div style="display: flex; gap: 10px;">
@@ -122,7 +125,7 @@
       
       <div id="detail-card" style="display: none; background: #1e272e; padding: 20px; border-radius: 8px; margin-top: 15px; text-align: left; border: 1px solid #353b48;">
         <div style="text-align: center; margin-bottom: 15px;">
-          <img id="d-photo" src="" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #00a8ff;">
+          <img id="d-photo" src="" style="width: 130px; height: 150px; border-radius: 8px; object-fit: cover; border: 2px solid #00a8ff;">
           <h3 id="d-name" style="margin: 10px 0 5px 0; color: white;"></h3>
           <span id="d-enr" style="color: #00a8ff; font-weight: bold;"></span>
         </div>
@@ -131,6 +134,7 @@
           <li><b>Join Date:</b> <span id="d-join"></span></li>
           <hr style="border-color: #353b48; margin: 10px 0;">
           <li><b>Total Possible Days:</b> <span id="d-possible"></span></li>
+          <li><b>Days Present:</b> <span id="d-present" style="color: #00a8ff; font-weight: bold;"></span></li>
           <li><b>Holidays & Sundays:</b> <span id="d-holidays"></span></li>
           <li><b>Total Leave (Absent):</b> <span id="d-absent" style="color: #e84118; font-weight: bold;"></span></li>
           <hr style="border-color: #353b48; margin: 10px 0;">
@@ -139,11 +143,9 @@
       </div>
     </div>
 
-    
-    <!-- NEW MANAGEMENT VIEW -->
+    <!-- MANAGEMENT VIEW -->
     <div id="view-manage" class="view-section">
       
-      <!-- Mark Completed -->
       <div style="background: #1e272e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
         <h3 style="color: #fbc531; margin-top: 0;">Mark Student Completed</h3>
         <div class="form-group">
@@ -158,7 +160,20 @@
         <div id="msg-comp" class="msg-box"></div>
       </div>
 
-      <!-- Mark Holiday -->
+      <div style="background: #1e272e; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h3 style="color: #00a8ff; margin-top: 0;">Mark Individual Leave</h3>
+        <div class="form-group">
+          <label>Enrollment Number</label>
+          <input type="text" id="leave-id" placeholder="e.g. 001 or ENR-001">
+        </div>
+        <div class="form-group">
+          <label>Leave Date</label>
+          <input type="date" id="leave-date">
+        </div>
+        <button class="btn btn-blue" id="btn-leave" onclick="handleMarkLeave()">Add Leave</button>
+        <div id="msg-leave" class="msg-box"></div>
+      </div>
+
       <div style="background: #1e272e; padding: 15px; border-radius: 8px;">
         <h3 style="color: #4cd137; margin-top: 0;">Mark Holiday / Cancelled Class</h3>
         <div class="form-group">
@@ -171,11 +186,18 @@
 
     </div>
 
-  </div>
+  </div> <!-- End Container -->
+</div> <!-- End Dashboard Screen -->
+
+<!-- SCAN OVERLAY (Must remain outside of the tabs container) -->
+<div id="scan-overlay">
+  <h3 id="overlay-status">✅ Success!</h3>
+  <p id="overlay-text">Student Logged Present</p>
+  <button class="btn btn-blue" onclick="unlockScanner()" style="font-size: 20px; padding: 20px;">Tap to Scan Next</button>
 </div>
 
 <script>
-  const API_URL = "https://script.google.com/macros/s/AKfycbyiM08C13kBsmMoTHxjjn-RYh232FSvwWY4nKgUkNosKPfZ1XvEhi8GL4-cSwTgvw7X/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbzxXXH9rWgHjOTqpNhkRlqrDNF-ks8JH9NhBit5HzlokBUR6O11lQ-f6rH-eSyVDXFjhQ/exec";
   let activeSecret = ""; 
 
   // --- FETCH DYNAMIC COURSES ON LOAD ---
@@ -199,21 +221,26 @@
       document.getElementById('login-screen').style.display = "none";
       document.getElementById('dashboard-screen').style.display = "block";
       
+      
       // Auto-set today's date in the date pickers upon login
       document.getElementById('comp-date').valueAsDate = new Date();
       document.getElementById('hol-date').valueAsDate = new Date();
+      document.getElementById('leave-date').valueAsDate = new Date();
+      document.getElementById('scan-date').valueAsDate = new Date();
     }
   }
 
   function switchTab(tab) {
-    ['enroll', 'scan', 'manage'].forEach(t => {
+    ['enroll', 'scan', 'manage', 'details'].forEach(t => {
       document.getElementById(`btn-${t}`).classList.remove('active');
-      document.getElementById(`view-${t}`).classList.remove('active');
+      const view = document.getElementById(`view-${t}`);
+      if(view) view.classList.remove('active');
     });
     document.getElementById(`btn-${tab}`).classList.add('active');
     document.getElementById(`view-${tab}`).classList.add('active');
   }
 
+  // --- STREAMING_CHUNK:Bulletproof API Caller ---
   async function callMasterAPI(action, data, buttonId) {
     const btn = buttonId ? document.getElementById(buttonId) : null;
     if(btn) { btn.disabled = true; }
@@ -223,15 +250,25 @@
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: action, data: data, secret: activeSecret })
       });
-      const result = await response.json();
+      
+      // Robust error handling to prevent silent freezing
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch(e) {
+        throw new Error("Backend connection failed or script needs authorization.");
+      }
+
       if(btn) { btn.disabled = false; }
       return result;
     } catch (error) {
       if(btn) { btn.disabled = false; }
-      return { success: false, error: "Network Error." };
+      return { success: false, error: error.message || "Network Error." };
     }
   }
 
+  // --- STREAMING_CHUNK:Enrollment Logic ---
   async function handleEnroll(event) {
     event.preventDefault();
     const msgBox = document.getElementById('msg-enroll');
@@ -239,14 +276,15 @@
     const originalText = btn.innerText;
     
     btn.innerText = "Processing...";
+    msgBox.style.display = "flex";
     msgBox.className = "msg-box processing";
     msgBox.innerHTML = "Saving...";
 
     const res = await callMasterAPI("enrollStudent", {
-      name: document.getElementById('en-name').value,
-      age: document.getElementById('en-age').value,
+      name: document.getElementById('en-name').value.trim(),
+      mobile: document.getElementById('en-mobile').value.trim(),
       course: document.getElementById('en-course').value,
-      email: document.getElementById('en-email').value
+      email: document.getElementById('en-email').value.trim()
     }, "submit-enroll");
     
     btn.innerText = originalText;
@@ -263,6 +301,7 @@
     }
   }
 
+  // --- STREAMING_CHUNK:Scanner Logic ---
   let html5QrCode;
   let isScanning = false;
 
@@ -276,6 +315,7 @@
       { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ] },
       onScanSuccess
     ).catch(err => {
+      document.getElementById('msg-scan').style.display = "flex";
       document.getElementById('msg-scan').className = "msg-box error";
       document.getElementById('msg-scan').innerHTML = "❌ Camera Error.";
     });
@@ -287,14 +327,13 @@
     processAttendance(decodedText.trim());
   }
 
-  // --- UPDATED ID PARSER LOGIC ---
   function processScanManual() {
     let manualId = document.getElementById('scan-manual').value.trim();
     
     if(manualId && !isScanning) {
       isScanning = true;
       
-      // Smart Auto-Formatter: If it's just a number (e.g., '1' or '45'), format it to 'ENR-001'
+      // Smart Auto-Formatter
       if (!manualId.toUpperCase().startsWith("ENR-") && !isNaN(manualId)) {
         manualId = "ENR-" + manualId.padStart(3, '0');
       } else {
@@ -311,7 +350,9 @@
     msgBox.className = "msg-box processing";
     msgBox.innerHTML = `Logging ${enrollId}...`;
 
-    const res = await callMasterAPI("scanAttendance", { enrollNumber: enrollId }, null);
+    const scanDate = document.getElementById('scan-date').value;
+
+    const res = await callMasterAPI("scanAttendance", { enrollNumber: enrollId, date: scanDate }, null);
     
     msgBox.style.display = "none";
     const overlay = document.getElementById('scan-overlay');
@@ -351,7 +392,7 @@
     } catch (e) {}
   }
 
-  // --- NEW MANAGE LOGIC ---
+  // --- STREAMING_CHUNK:Management Tabs Logic ---
   async function handleMarkCompleted() {
     let manualId = document.getElementById('comp-id').value.trim();
     const compDate = document.getElementById('comp-date').value;
@@ -359,13 +400,13 @@
     
     if (!manualId || !compDate) return alert("Please fill all fields.");
 
-    // Uses the same smart auto-formatting as the scanner!
     if (!manualId.toUpperCase().startsWith("ENR-") && !isNaN(manualId)) {
       manualId = "ENR-" + manualId.padStart(3, '0');
     } else {
       manualId = manualId.toUpperCase();
     }
 
+    msgBox.style.display = "flex";
     msgBox.className = "msg-box processing";
     msgBox.innerHTML = "Processing...";
 
@@ -381,12 +422,42 @@
     }
   }
 
+  async function handleMarkLeave() {
+    let manualId = document.getElementById('leave-id').value.trim();
+    const leaveDate = document.getElementById('leave-date').value;
+    const msgBox = document.getElementById('msg-leave');
+    
+    if (!manualId || !leaveDate) return alert("Please fill all fields.");
+
+    if (!manualId.toUpperCase().startsWith("ENR-") && !isNaN(manualId)) {
+      manualId = "ENR-" + manualId.padStart(3, '0');
+    } else {
+      manualId = manualId.toUpperCase();
+    }
+
+    msgBox.style.display = "flex";
+    msgBox.className = "msg-box processing";
+    msgBox.innerHTML = "Processing...";
+
+    const res = await callMasterAPI("markLeave", { enrollNumber: manualId, date: leaveDate }, "btn-leave");
+    
+    if(res.success) {
+      msgBox.className = "msg-box success";
+      msgBox.innerHTML = `✅ Leave successfully logged for ${manualId}!`;
+      document.getElementById('leave-id').value = "";
+    } else {
+      msgBox.className = "msg-box error";
+      msgBox.innerHTML = `❌ ${res.error}`;
+    }
+  }
+
   async function handleMarkHoliday() {
     const holDate = document.getElementById('hol-date').value;
     const msgBox = document.getElementById('msg-hol');
     
     if (!holDate) return alert("Please select a date.");
 
+    msgBox.style.display = "flex";
     msgBox.className = "msg-box processing";
     msgBox.innerHTML = "Processing...";
 
@@ -401,9 +472,7 @@
     }
   }
 
-  // Ensure 'details' is added to your switchTab array:
-  // ['enroll', 'scan', 'manage', 'details'].forEach(...)
-
+  // --- STREAMING_CHUNK:Profile Details Logic ---
   async function fetchDetails(scannedId = null) {
     let manualId = scannedId || document.getElementById('detail-id').value.trim();
     const msgBox = document.getElementById('msg-details');
@@ -429,12 +498,19 @@
       msgBox.style.display = "none";
       card.style.display = "block";
       
-      document.getElementById('d-photo').src = res.data.photo;
+      // Google Drive Embed Bypass
+      let photoLink = res.data.photo;
+      if(photoLink.includes("uc?export=view&id=")) {
+        photoLink = photoLink.replace("uc?export=view&id=", "thumbnail?sz=w300&id=");
+      }
+      
+      document.getElementById('d-photo').src = photoLink;
       document.getElementById('d-name').innerText = res.data.name;
       document.getElementById('d-enr').innerText = res.data.enrollNumber;
       document.getElementById('d-course').innerText = res.data.course;
       document.getElementById('d-join').innerText = res.data.joinDate;
       document.getElementById('d-possible').innerText = res.data.totalPossible;
+      document.getElementById('d-present').innerText = res.data.daysPresent;
       document.getElementById('d-holidays').innerText = res.data.holidays;
       document.getElementById('d-absent').innerText = res.data.totalAbsent;
       document.getElementById('d-pct').innerText = res.data.attendancePct;
